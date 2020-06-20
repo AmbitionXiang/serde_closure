@@ -11,14 +11,20 @@ Serializable and debuggable closures.
 This library provides macros that wrap closures to make them serializable and
 debuggable.
 
+## My version
+This version supports getting serialized captured variables.
+
+For example,
 ```rust
 let one = 1;
 let plus_one = Fn!(|x: i32| x + one);
 
+println!("{:?}", plus_one.f.get_ser_captured_var());
 assert_eq!(2, plus_one(1));
 println!("{:#?}", plus_one);
 
 // prints:
+// [1, 0, 0, 0]
 // Fn<main::{{closure}} at main.rs:6:15> {
 //     one: 1,
 //     source: "| x : i32 | x + one",
