@@ -286,7 +286,7 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 					option::Option::{self, Some},
 				};
 				use self::internal::serde::{Deserialize, Serialize};
-				use self::internal::std::{process::abort, string::{String, ToString}};
+				use self::internal::std::{process::abort, string::{String, ToString}, vec::Vec};
 				const SOURCE: &str = #source;
 				#[derive(Serialize, Deserialize)]
 				#[serde(
@@ -423,6 +423,16 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 							.finish()
 					}
 				}
+                impl<#(#type_params,)* F> #name<#(#type_params,)* F>
+                where 
+                    #(#type_params: Serialize,)*
+                {
+                    pub fn get_ser_captured_var(&self) -> Vec<u8> {
+                        let mut v = Vec::new();
+                        #( v.append(&mut bincode::serialize(&self.#env_variables).unwrap()); )*
+                        v
+                    }
+                }
 
 				#fn_impl
 			}

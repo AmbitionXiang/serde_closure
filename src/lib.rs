@@ -268,7 +268,8 @@ pub mod structs {
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct FnOnce<F> {
-		f: F,
+		#[doc(hidden)]
+        pub f: F,
 	}
 	impl<F> FnOnce<F> {
 		/// Internal method
@@ -309,7 +310,8 @@ pub mod structs {
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct FnMut<F> {
-		f: F,
+		#[doc(hidden)]
+        pub f: F,
 	}
 	impl<F> FnMut<F> {
 		/// Internal method
@@ -358,7 +360,8 @@ pub mod structs {
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct Fn<F> {
-		f: F,
+		#[doc(hidden)]
+        pub f: F,
 	}
 	impl<F> Fn<F> {
 		/// Internal method
