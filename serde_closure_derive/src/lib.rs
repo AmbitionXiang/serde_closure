@@ -423,11 +423,11 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 							.finish()
 					}
 				}
-                impl<#(#type_params,)* F> #name<#(#type_params,)* F>
+                impl<#(#type_params,)* F> structs::Peep for #name<#(#type_params,)* F>
                 where 
                     #(#type_params: Serialize,)*
                 {
-                    pub fn get_ser_captured_var(&self) -> Vec<u8> {
+                    fn get_ser_captured_var(&self) -> Vec<u8> {
                         let mut v = Vec::new();
                         #( v.append(&mut bincode::serialize(&self.#env_variables).unwrap()); )*
                         v

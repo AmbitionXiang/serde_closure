@@ -259,8 +259,10 @@ pub mod structs {
 
 	use super::internal;
 
+    /// This trait helps getting captured variables
     pub trait Peep {
-        pub fn get_ser_captured_var(&self) -> Vec<u8>;
+        #[doc(hidden)]
+        fn get_ser_captured_var(&self) -> Vec<u8>;
     }
 
 	/// A struct representing a serializable closure, created by the
@@ -305,6 +307,8 @@ pub mod structs {
 	}
 
     impl<F> Peep for FnOnce<F>
+    where 
+        F: Peep,
     {
         fn get_ser_captured_var(&self) -> Vec<u8> {
             self.f.get_ser_captured_var()
@@ -361,6 +365,8 @@ pub mod structs {
 	}
     
     impl<F> Peep for FnMut<F>
+    where 
+        F: Peep,
     {
         fn get_ser_captured_var(&self) -> Vec<u8> {
             self.f.get_ser_captured_var()
@@ -426,6 +432,8 @@ pub mod structs {
 	}
     
     impl<F> Peep for Fn<F>
+    where 
+        F: Peep,
     {
         fn get_ser_captured_var(&self) -> Vec<u8> {
             self.f.get_ser_captured_var()
