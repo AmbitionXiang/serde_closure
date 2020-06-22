@@ -259,6 +259,10 @@ pub mod structs {
 
 	use super::internal;
 
+    pub trait Peep {
+        pub fn get_ser_captured_var(&self) -> Vec<u8>;
+    }
+
 	/// A struct representing a serializable closure, created by the
 	/// [`FnOnce`](macro@FnOnce) macro. Implements [`std::ops::FnOnce`],
 	/// [`Debug`], [`Serialize`] and [`Deserialize`], and various convenience
@@ -268,8 +272,7 @@ pub mod structs {
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct FnOnce<F> {
-		#[doc(hidden)]
-        pub f: F,
+        f: F,
 	}
 	impl<F> FnOnce<F> {
 		/// Internal method
@@ -301,6 +304,12 @@ pub mod structs {
 		}
 	}
 
+    impl<F> Peep for FnOnce<F>
+    {
+        fn get_ser_captured_var(&self) -> Vec<u8> {
+            self.f.get_ser_captured_var()
+        }
+    }
 	/// A struct representing a serializable closure, created by the
 	/// [`FnMut`](macro@FnMut) macro. Implements [`std::ops::FnMut`],
 	/// [`Debug`], [`Serialize`] and [`Deserialize`], and various convenience
@@ -310,8 +319,7 @@ pub mod structs {
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct FnMut<F> {
-		#[doc(hidden)]
-        pub f: F,
+        f: F,
 	}
 	impl<F> FnMut<F> {
 		/// Internal method
@@ -351,6 +359,13 @@ pub mod structs {
 			Debug::fmt(&self.f, f)
 		}
 	}
+    
+    impl<F> Peep for FnMut<F>
+    {
+        fn get_ser_captured_var(&self) -> Vec<u8> {
+            self.f.get_ser_captured_var()
+        }
+    }
 
 	/// A struct representing a serializable closure, created by the
 	/// [`Fn`](macro@Fn) macro. Implements [`std::ops::Fn`], [`Debug`],
@@ -360,8 +375,7 @@ pub mod structs {
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct Fn<F> {
-		#[doc(hidden)]
-        pub f: F,
+        f: F,
 	}
 	impl<F> Fn<F> {
 		/// Internal method
@@ -410,4 +424,12 @@ pub mod structs {
 			Debug::fmt(&self.f, f)
 		}
 	}
+    
+    impl<F> Peep for Fn<F>
+    {
+        fn get_ser_captured_var(&self) -> Vec<u8> {
+            self.f.get_ser_captured_var()
+        }
+    }
+
 }
