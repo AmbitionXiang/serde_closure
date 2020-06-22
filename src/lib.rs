@@ -254,7 +254,7 @@ pub mod structs {
 
 	use serde::{Deserialize, Serialize};
 	use std::{
-		fmt::{self, Debug}, ops
+		fmt::{self, Debug}, ops, boxed::Box,
 	};
 
 	use super::internal;
@@ -314,7 +314,17 @@ pub mod structs {
             self.f.get_ser_captured_var()
         }
     }
-	/// A struct representing a serializable closure, created by the
+
+    impl<F> Peep for Box<FnOnce<F>>
+    where 
+        F: Peep,
+    {
+        fn get_ser_captured_var(&self) -> Vec<u8> {
+            self.f.get_ser_captured_var()
+        }
+    }
+
+    /// A struct representing a serializable closure, created by the
 	/// [`FnMut`](macro@FnMut) macro. Implements [`std::ops::FnMut`],
 	/// [`Debug`], [`Serialize`] and [`Deserialize`], and various convenience
 	/// traits.
@@ -372,6 +382,16 @@ pub mod structs {
             self.f.get_ser_captured_var()
         }
     }
+    
+    impl<F> Peep for Box<FnMut<F>>
+    where 
+        F: Peep,
+    {
+        fn get_ser_captured_var(&self) -> Vec<u8> {
+            self.f.get_ser_captured_var()
+        }
+    }
+
 
 	/// A struct representing a serializable closure, created by the
 	/// [`Fn`](macro@Fn) macro. Implements [`std::ops::Fn`], [`Debug`],
@@ -432,6 +452,15 @@ pub mod structs {
 	}
     
     impl<F> Peep for Fn<F>
+    where 
+        F: Peep,
+    {
+        fn get_ser_captured_var(&self) -> Vec<u8> {
+            self.f.get_ser_captured_var()
+        }
+    }
+    
+    impl<F> Peep for Box<Fn<F>>
     where 
         F: Peep,
     {
