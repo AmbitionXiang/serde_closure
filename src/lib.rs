@@ -8,11 +8,13 @@
 //! and debuggable.
 //!
 //! ```
-//! # use serde_closure::Fn;
+//! use serde_closure::{traits::Fn, Fn};
+//!
 //! let one = 1;
 //! let plus_one = Fn!(|x: i32| x + one);
 //!
-//! assert_eq!(2, plus_one(1));
+//! assert_eq!(2, plus_one.call((1,))); // this works on stable and nightly
+//! // assert_eq!(2, plus_one(1));      // this only works on nightly
 //! println!("{:#?}", plus_one);
 //!
 //! // prints:
@@ -22,9 +24,11 @@
 //! // }
 //! ```
 //!
-//! This library aims to work in as simple and safe a way as possible. It
-//! currently requires nightly Rust for the `unboxed_closures` and `fn_traits`
-//! features (rust issue
+//! This library aims to work in as simple and safe a way as possible. On stable
+//! Rust the wrapped closures implement [`traits::FnOnce`], [`traits::FnMut`]
+//! and [`traits::Fn`], and on nightly Rust [`std::ops::FnOnce`],
+//! [`std::ops::FnMut`] and [`std::ops::Fn`] are implemented as well using the
+//! `unboxed_closures` and `fn_traits` features (rust issue
 //! [#29625](https://github.com/rust-lang/rust/issues/29625)).
 //!
 //!  * There are three macros, [`FnOnce`](macro@FnOnce), [`FnMut`](macro@FnMut)
@@ -39,51 +43,47 @@
 //! # Examples of wrapped closures
 //! **Inferred, non-capturing closure:**
 //! ```
-//! # #[macro_use] extern crate serde_closure;
 //! # (
 //! |a| a+1
 //! # )(0i32);
 //! ```
 //! ```
-//! # #[macro_use] extern crate serde_closure;
+//! # use serde_closure::{traits::FnMut, FnMut};
 //! # (
 //! FnMut!(|a| a+1)
-//! # )(0i32);
+//! # ).call_mut((0i32,));
 //! ```
 //!
 //! **Annotated, non-capturing closure:**
 //! ```
-//! # #[macro_use] extern crate serde_closure;
 //! # (
 //! |a: String| -> String { a.to_uppercase() }
 //! # )(String::from("abc"));
 //! ```
 //! ```
-//! # #[macro_use] extern crate serde_closure;
+//! # use serde_closure::{traits::FnMut, FnMut};
 //! # (
 //! FnMut!(|a: String| -> String { a.to_uppercase() })
-//! # )(String::from("abc"));
+//! # ).call_mut((String::from("abc"),));
 //! ```
 //!
 //! **Inferred closure, capturing `num`:**
 //! ```
-//! # #[macro_use] extern crate serde_closure;
 //! let mut num = 0;
 //! # (
 //! |a| num += a
 //! # )(1i32);
 //! ```
 //! ```
-//! # #[macro_use] extern crate serde_closure;
+//! # use serde_closure::{traits::FnMut, FnMut};
 //! let mut num = 0;
 //! # (
 //! FnMut!(|a| num += a)
-//! # )(1i32);
+//! # ).call_mut((1i32,));
 //! ```
 //!
 //! **`move` closure, capturing `hello` and `world`:**
 //! ```
-//! # #[macro_use] extern crate serde_closure;
 //! let hello = String::from("hello");
 //! let mut world = String::new();
 //! # (
@@ -93,14 +93,14 @@
 //! # )("abc");
 //! ```
 //! ```
-//! # #[macro_use] extern crate serde_closure;
+//! # use serde_closure::{traits::FnMut, FnMut};
 //! let hello = String::from("hello");
 //! let mut world = String::new();
 //! # (
 //! FnMut!(move |name| {
 //!     world += (hello.to_uppercase() + name).as_str();
 //! })
-//! # )("abc");
+//! # ).call_mut(("abc",));
 //! ```
 //!
 //! # Limitations
@@ -165,8 +165,8 @@
 //! automatically serializable and deserializable with
 //! [`serde`](https://github.com/serde-rs/serde).
 
-#![doc(html_root_url = "https://docs.rs/serde_closure/0.2.13")]
-#![feature(unboxed_closures, fn_traits)]
+#![doc(html_root_url = "https://docs.rs/serde_closure/0.3.2")]
+#![cfg_attr(nightly, feature(unboxed_closures, fn_traits))]
 #![warn(
 	missing_copy_implementations,
 	missing_debug_implementations,
@@ -181,28 +181,243 @@
 #![allow(clippy::inline_always)]
 
 /// Macro that wraps a closure, evaluating to a [`FnOnce`](structs::FnOnce)
-/// struct that implements [`std::ops::FnOnce`], [`Debug`](std::fmt::Debug),
-/// [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize), and
-/// various convenience traits.
+/// struct that implements [`traits::FnOnce`] (and [`std::ops::FnOnce`] on
+/// nightly), [`Debug`](std::fmt::Debug), [`Serialize`](serde::Serialize) and
+/// [`Deserialize`](serde::Deserialize), and various convenience traits.
 ///
 /// See the [readme](self) for examples.
 pub use serde_closure_derive::FnOnce;
 
 /// Macro that wraps a closure, evaluating to a [`FnMut`](structs::FnMut) struct
-/// that implements [`std::ops::FnMut`], [`Debug`](std::fmt::Debug),
-/// [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize), and
-/// various convenience traits.
+/// that implements [`traits::FnMut`] (and [`std::ops::FnMut`] on nightly),
+/// [`Debug`](std::fmt::Debug), [`Serialize`](serde::Serialize) and
+/// [`Deserialize`](serde::Deserialize), and various convenience traits.
 ///
 /// See the [readme](self) for examples.
 pub use serde_closure_derive::FnMut;
 
 /// Macro that wraps a closure, evaluating to a [`Fn`](structs::Fn) struct that
-/// implements [`std::ops::Fn`], [`Debug`](std::fmt::Debug),
-/// [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize), and
-/// various convenience traits.
+/// implements [`traits::Fn`] (and [`std::ops::Fn`] on nightly),
+/// [`Debug`](std::fmt::Debug), [`Serialize`](serde::Serialize) and
+/// [`Deserialize`](serde::Deserialize), and various convenience traits.
 ///
 /// See the [readme](self) for examples.
 pub use serde_closure_derive::Fn;
+
+/// Attribute macro that can be applied to items to desugar trait bounds
+/// `FnOnce(…) -> …`, `FnMut(…) -> …` and `Fn(…) -> …` to `FnOnce<(…), Output = …>`,
+/// `FnMut<(…), Output = …>` and `Fn<(…), Output = …>`. This is just a
+/// convenience to enable parenthesized arguments for non `std::ops::*` traits
+/// on stable Rust.
+///
+/// See `tests/stable.rs` for examples.
+pub use serde_closure_derive::desugar;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! FnMutNamed {
+	(pub type $name:ident<$($t:ident),*> = |$self:ident $(,$env:ident: $env_type:ty)*|$($arg:pat=> $arg_type:ty),*| -> $output:ty where $($bound_ty:ident : $bound_trait:tt),* $body:block) => (
+		FnMutNamed!{ pub type $name<$($t),*> = |$self $(,$env: $env_type)*|$($arg => $arg_type),*| -> $output where $($bound_ty : $bound_trait),* ; where $body}
+	);
+	(pub type $name:ident<$($t:ident),*> = |$self:ident $(,$env:ident: $env_type:ty)*|$($arg:pat=> $arg_type:ty),*| -> $output:ty where $($bound_ty:ident : $bound_trait:tt),* ; where $($fn_bound_ty:ident : $fn_bound_trait:tt),* $body:block) => (
+		pub struct $name<$($t),*>
+		where
+			$($bound_ty: $bound_trait),*
+		{
+			$($env: $env_type,)*
+			marker: $crate::internal::core::marker::PhantomData<fn() -> ($($t,)*)>,
+		}
+		const _: () = {
+			impl<$($t),*> $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait),*
+			{
+				#[allow(clippy::inline_always, clippy::new_without_default)]
+				#[inline(always)]
+				pub fn new($($env: $env_type),*) -> Self {
+					Self {
+						$($env: $env,)*
+						marker: $crate::internal::core::marker::PhantomData,
+					}
+				}
+				#[inline]
+				fn run(&mut $self, ($($arg,)*): ($($arg_type,)*)) -> $output
+				where
+					$($fn_bound_ty: $fn_bound_trait),*
+					$body
+			}
+			impl<$($t),*> Clone for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait,)*
+				$($env_type: Clone,)*
+			{
+				#[inline]
+				fn clone(&self) -> Self {
+					Self {
+						$($env: self.$env.clone(),)*
+						marker: $crate::internal::core::marker::PhantomData,
+					}
+				}
+			}
+			impl<$($t),*> $crate::internal::serde::Serialize for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait,)*
+				$($env_type: $crate::internal::serde::Serialize,)*
+			{
+				fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: $crate::internal::serde::Serializer {
+					$crate::internal::serde::Serialize::serialize(&($(&self.$env,)*), serializer)
+				}
+			}
+			impl<'de, $($t),*> $crate::internal::serde::Deserialize<'de> for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait,)*
+				$($env_type: $crate::internal::serde::Deserialize<'de>,)*
+			{
+				fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: $crate::internal::serde::Deserializer<'de> {
+					<($($env_type,)*) as $crate::internal::serde::Deserialize>::deserialize(deserializer).map(|($($env,)*)| {
+						Self {
+							$($env,)*
+							marker: $crate::internal::core::marker::PhantomData
+						}
+					})
+				}
+			}
+			#[$crate::desugar]
+			impl<$($t),*> $crate::traits::FnOnce($($arg_type,)*) -> $output for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait),*
+				$($fn_bound_ty: $fn_bound_trait),*
+			{
+				#[allow(clippy::inline_always)]
+				#[inline(always)]
+				fn call_once(mut self, args: ($($arg_type,)*)) -> Self::Output {
+					self.run(args)
+				}
+			}
+			#[$crate::desugar]
+			impl<$($t),*> $crate::traits::FnMut($($arg_type,)*) -> $output for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait),*
+				$($fn_bound_ty: $fn_bound_trait),*
+			{
+				#[allow(clippy::inline_always)]
+				#[inline(always)]
+				fn call_mut(&mut self, args: ($($arg_type,)*)) -> Self::Output {
+					$crate::internal::transmute(self.run(args))
+				}
+			}
+		};
+	)
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! FnNamed {
+	(pub type $name:ident<$($t:ident),*> = |$self:ident $(,$env:ident: $env_type:ty)*|$($arg:pat=> $arg_type:ty),*| -> $output:ty where $($bound_ty:ident : $bound_trait:tt),* $body:block) => (
+		FnNamed!{ pub type $name<$($t),*> = |$self $(,$env: $env_type)*|$($arg => $arg_type),*| -> $output where $($bound_ty : $bound_trait),* ; where $body}
+	);
+	(pub type $name:ident<$($t:ident),*> = |$self:ident $(,$env:ident: $env_type:ty)*|$($arg:pat=> $arg_type:ty),*| -> $output:ty where $($bound_ty:ident : $bound_trait:tt),* ; where $($fn_bound_ty:ident : $fn_bound_trait:tt),* $body:block) => (
+		pub struct $name<$($t),*>
+		where
+			$($bound_ty: $bound_trait),*
+		{
+			$($env: $env_type,)*
+			marker: $crate::internal::core::marker::PhantomData<fn() -> ($($t,)*)>,
+		}
+		const _: () = {
+			impl<$($t),*> $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait),*
+			{
+				#[allow(clippy::inline_always, clippy::new_without_default)]
+				#[inline(always)]
+				pub fn new($($env: $env_type),*) -> Self {
+					Self {
+						$($env: $env,)*
+						marker: $crate::internal::core::marker::PhantomData,
+					}
+				}
+				#[inline]
+				fn run(&$self, ($($arg,)*): ($($arg_type,)*)) -> $output
+				where
+					$($fn_bound_ty: $fn_bound_trait),*
+					$body
+			}
+			impl<$($t),*> Clone for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait,)*
+				$($env_type: Clone,)*
+			{
+				#[inline]
+				fn clone(&self) -> Self {
+					Self {
+						$($env: self.$env.clone(),)*
+						marker: $crate::internal::core::marker::PhantomData,
+					}
+				}
+			}
+			impl<$($t),*> $crate::internal::serde::Serialize for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait,)*
+				$($env_type: $crate::internal::serde::Serialize,)*
+			{
+				fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: $crate::internal::serde::Serializer {
+					$crate::internal::serde::Serialize::serialize(&($(&self.$env,)*), serializer)
+				}
+			}
+			impl<'de, $($t),*> $crate::internal::serde::Deserialize<'de> for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait,)*
+				$($env_type: $crate::internal::serde::Deserialize<'de>,)*
+			{
+				fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: $crate::internal::serde::Deserializer<'de> {
+					<($($env_type,)*) as $crate::internal::serde::Deserialize>::deserialize(deserializer).map(|($($env,)*)| {
+						Self {
+							$($env,)*
+							marker: $crate::internal::core::marker::PhantomData
+						}
+					})
+				}
+			}
+			#[$crate::desugar]
+			impl<$($t),*> $crate::traits::FnOnce($($arg_type,)*) -> $output for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait),*
+				$($fn_bound_ty: $fn_bound_trait),*
+			{
+				#[allow(clippy::inline_always)]
+				#[inline(always)]
+				fn call_once(self, args: ($($arg_type,)*)) -> Self::Output {
+					self.run(args)
+				}
+			}
+			#[$crate::desugar]
+			impl<$($t),*> $crate::traits::FnMut($($arg_type,)*) -> $output for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait),*
+				$($fn_bound_ty: $fn_bound_trait),*
+			{
+				#[allow(clippy::inline_always)]
+				#[inline(always)]
+				fn call_mut(&mut self, args: ($($arg_type,)*)) -> Self::Output {
+					$crate::internal::transmute(self.run(args))
+				}
+			}
+			#[$crate::desugar]
+			impl<$($t),*> $crate::traits::Fn($($arg_type,)*) -> $output for $name<$($t),*>
+			where
+				$($bound_ty: $bound_trait),*
+				$($fn_bound_ty: $fn_bound_trait),*
+			{
+				#[allow(clippy::inline_always)]
+				#[inline(always)]
+				fn call(&self, args: ($($arg_type,)*)) -> Self::Output {
+					$crate::internal::transmute(self.run(args))
+				}
+			}
+		};
+	)
+}
 
 #[doc(hidden)]
 pub mod internal {
@@ -240,22 +455,208 @@ pub mod internal {
 		non_camel_case_types
 	)]
 	pub struct a_variable;
+
+	/// Obviously heinously unsafe but don't declare as such to avoid macro
+	/// unavoidably triggering `unsafe_code`
+	#[allow(clippy::missing_safety_doc)]
+	#[inline(always)]
+	pub fn transmute<T, U>(e: T) -> U {
+		use std::mem::{self, align_of, size_of};
+		assert_eq!(
+			(size_of::<T>(), align_of::<T>()),
+			(size_of::<U>(), align_of::<U>())
+		);
+		let ret = unsafe { mem::transmute_copy(&e) };
+		mem::forget(e);
+		ret
+	}
+}
+
+pub mod traits {
+	//! Supertraits of [`std::ops::FnOnce`], [`std::ops::FnMut`] and
+	//! [`std::ops::Fn`] that are usable on stable Rust. They are implemented
+	//! by closures created by the [`FnOnce`](macro@super::FnOnce),
+	//! [`FnMut`](macro@super::FnMut) and [`Fn`](macro@super::Fn) macros.
+	//!
+	//! See the [readme](super) for examples.
+
+	#![allow(non_snake_case)]
+
+	use std::ops;
+
+	/// Supertrait of [`std::ops::FnOnce`] that is usable on stable Rust. It is
+	/// implemented by closures created by the [`FnOnce`](macro@super::FnOnce)
+	/// macro.
+	///
+	/// See the [readme](super) for examples.
+	pub trait FnOnce<Args> {
+		/// The returned type after the call operator is used.
+		type Output;
+
+		/// Performs the call operation.
+		fn call_once(self, args: Args) -> Self::Output;
+	}
+
+	/// Supertrait of [`std::ops::FnMut`] that is usable on stable Rust. It is
+	/// implemented by closures created by the [`FnMut`](macro@super::FnMut)
+	/// macro.
+	///
+	/// See the [readme](super) for examples.
+	pub trait FnMut<Args>: FnOnce<Args> {
+		/// Performs the call operation.
+		fn call_mut(&mut self, args: Args) -> Self::Output;
+	}
+
+	/// Supertrait of [`std::ops::Fn`] that is usable on stable Rust. It is
+	/// implemented by closures created by the [`Fn`](macro@super::Fn)
+	/// macro.
+	///
+	/// See the [readme](super) for examples.
+	pub trait Fn<Args>: FnMut<Args> {
+		/// Performs the call operation.
+		fn call(&self, args: Args) -> Self::Output;
+	}
+
+	/// A version of the [`FnOnce`] trait intended to be used for boxed trait
+	/// objects to make them callable on stable Rust.
+	///
+	/// ```ignore
+	/// let t: Box<dyn FnOnceBox(…) -> …> = …;
+	/// let output = t.call_once_box((…,));
+	/// ```
+	pub trait FnOnceBox<A> {
+		/// The returned type after the call operator is used.
+		type Output;
+
+		/// Performs the call operation on a `Box<dyn FnOnceBox(…) -> …>`.
+		fn call_once_box(self: Box<Self>, args: A) -> Self::Output;
+	}
+	impl<A, F> FnOnceBox<A> for F
+	where
+		F: FnOnce<A>,
+	{
+		type Output = F::Output;
+
+		#[inline(always)]
+		fn call_once_box(self: Box<F>, args: A) -> F::Output {
+			self.call_once(args)
+		}
+	}
+
+	#[cfg(not(nightly))]
+	macro_rules! fn_once {
+		($($t:ident)*) => {
+			impl<T, $($t,)* O> FnOnce<($($t,)*)> for T
+			where
+				T: ops::FnOnce($($t,)*) -> O,
+			{
+				type Output = O;
+
+				#[inline(always)]
+				fn call_once(self, ($($t,)*): ($($t,)*)) -> Self::Output {
+					self($($t,)*)
+				}
+			}
+			fn_once!(@recurse $($t)*);
+		};
+		(@recurse $first:ident $($t:ident)*) => {
+			fn_once!($($t)*);
+		};
+		(@recurse) => {};
+	}
+	#[cfg(not(nightly))]
+	fn_once!(A B C D E F G H I J K L);
+	#[cfg(nightly)]
+	impl<T, Args> FnOnce<Args> for T
+	where
+		T: ops::FnOnce<Args>,
+	{
+		type Output = T::Output;
+
+		#[inline(always)]
+		fn call_once(self, args: Args) -> Self::Output {
+			self.call_once(args)
+		}
+	}
+
+	#[cfg(not(nightly))]
+	macro_rules! fn_mut {
+		($($t:ident)*) => {
+			impl<T, $($t,)* O> FnMut<($($t,)*)> for T
+			where
+				T: ops::FnMut($($t,)*) -> O,
+			{
+				#[inline(always)]
+				fn call_mut(&mut self, ($($t,)*): ($($t,)*)) -> Self::Output {
+					self($($t,)*)
+				}
+			}
+			fn_mut!(@recurse $($t)*);
+		};
+		(@recurse $first:ident $($t:ident)*) => {
+			fn_mut!($($t)*);
+		};
+		(@recurse) => {};
+	}
+	#[cfg(not(nightly))]
+	fn_mut!(A B C D E F G H I J K L);
+	#[cfg(nightly)]
+	impl<T, Args> FnMut<Args> for T
+	where
+		T: ops::FnMut<Args>,
+	{
+		#[inline(always)]
+		fn call_mut(&mut self, args: Args) -> Self::Output {
+			self.call_mut(args)
+		}
+	}
+
+	#[cfg(not(nightly))]
+	macro_rules! fn_ref {
+		($($t:ident)*) => {
+			impl<T, $($t,)* O> Fn<($($t,)*)> for T
+			where
+				T: ops::Fn($($t,)*) -> O,
+			{
+				#[inline(always)]
+				fn call(&self, ($($t,)*): ($($t,)*)) -> Self::Output {
+					self($($t,)*)
+				}
+			}
+			fn_ref!(@recurse $($t)*);
+		};
+		(@recurse $first:ident $($t:ident)*) => {
+			fn_ref!($($t)*);
+		};
+		(@recurse) => {};
+	}
+	#[cfg(not(nightly))]
+	fn_ref!(A B C D E F G H I J K L);
+	#[cfg(nightly)]
+	impl<T, Args> Fn<Args> for T
+	where
+		T: ops::Fn<Args>,
+	{
+		#[inline(always)]
+		fn call(&self, args: Args) -> Self::Output {
+			self.call(args)
+		}
+	}
 }
 
 pub mod structs {
 	//! Structs representing a serializable closure, created by the
-	//! [`FnOnce`](macro@FnOnce), [`FnMut`](macro@FnMut) and [`Fn`](macro@Fn)
-	//! macros. They implement [`std::ops::FnOnce`], [`std::ops::FnMut`] and
-	//! [`std::ops::Fn`] respectively, as well as [`Debug`](std::fmt::Debug),
-	//! [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize),
-	//! and various convenience traits.
+	//! [`FnOnce`](macro@super::FnOnce), [`FnMut`](macro@super::FnMut) and
+	//! [`Fn`](macro@super::Fn) macros. They implement [`traits::FnOnce`](super::traits::FnOnce),
+	//! [`traits::FnMut`](super::traits::FnMut) and [`traits::Fn`](super::traits::Fn)
+	//! respectively (and [`std::ops::FnOnce`], [`std::ops::FnMut`] and [`std::ops::Fn`]
+	//! on nightly), as well as [`Debug`](std::fmt::Debug), [`Serialize`](serde::Serialize)
+	//! and [`Deserialize`](serde::Deserialize), and various convenience traits.
 	//!
-	//! See the [readme](self) for examples.
+	//! See the [readme](super) for examples.
 
 	use serde::{Deserialize, Serialize};
-	use std::{
-		fmt::{self, Debug}, ops, boxed::Box,
-	};
+	use std::fmt::{self, Debug};
 
 	use super::internal;
 
@@ -266,11 +667,12 @@ pub mod structs {
     }
 
 	/// A struct representing a serializable closure, created by the
-	/// [`FnOnce`](macro@FnOnce) macro. Implements [`std::ops::FnOnce`],
-	/// [`Debug`], [`Serialize`] and [`Deserialize`], and various convenience
+	/// [`FnOnce`](macro@super::FnOnce) macro. Implements [`traits::FnOnce`](super::traits::FnOnce)
+	/// (and [`std::ops::FnOnce`] on nightly), [`Debug`], [`Serialize`] and
+	/// [`Deserialize`], and various convenience
 	/// traits.
 	///
-	/// See the [readme](self) for examples.
+	/// See the [readme](super) for examples.
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct FnOnce<F> {
@@ -287,16 +689,32 @@ pub mod structs {
 			Self { f }
 		}
 	}
-	impl<F, I> ops::FnOnce<I> for FnOnce<F>
+
+	#[cfg(not(nightly))]
+	impl<F, I> super::traits::FnOnce<I> for FnOnce<F>
 	where
 		F: internal::FnOnce<I>,
 	{
 		type Output = F::Output;
+
+		#[inline(always)]
+		fn call_once(self, args: I) -> Self::Output {
+			self.f.call_once(args)
+		}
+	}
+	#[cfg(nightly)]
+	impl<F, I> std::ops::FnOnce<I> for FnOnce<F>
+	where
+		F: internal::FnOnce<I>,
+	{
+		type Output = F::Output;
+
 		#[inline(always)]
 		extern "rust-call" fn call_once(self, args: I) -> Self::Output {
 			self.f.call_once(args)
 		}
 	}
+
 	impl<F> Debug for FnOnce<F>
 	where
 		F: Debug,
@@ -324,12 +742,13 @@ pub mod structs {
         }
     }
 
-    /// A struct representing a serializable closure, created by the
-	/// [`FnMut`](macro@FnMut) macro. Implements [`std::ops::FnMut`],
-	/// [`Debug`], [`Serialize`] and [`Deserialize`], and various convenience
+	/// A struct representing a serializable closure, created by the
+	/// [`FnMut`](macro@super::FnMut) macro. Implements [`traits::FnMut`](super::traits::FnMut)
+	/// (and [`std::ops::FnMut`] on nightly), [`Debug`], [`Serialize`] and
+	/// [`Deserialize`], and various convenience
 	/// traits.
 	///
-	/// See the [readme](self) for examples.
+	/// See the [readme](super) for examples.
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct FnMut<F> {
@@ -346,17 +765,44 @@ pub mod structs {
 			Self { f }
 		}
 	}
-	impl<F, I> ops::FnOnce<I> for FnMut<F>
+
+	#[cfg(not(nightly))]
+	impl<F, I> super::traits::FnOnce<I> for FnMut<F>
 	where
 		F: internal::FnOnce<I>,
 	{
 		type Output = F::Output;
+
+		#[inline(always)]
+		fn call_once(self, args: I) -> Self::Output {
+			self.f.call_once(args)
+		}
+	}
+	#[cfg(nightly)]
+	impl<F, I> std::ops::FnOnce<I> for FnMut<F>
+	where
+		F: internal::FnOnce<I>,
+	{
+		type Output = F::Output;
+
 		#[inline(always)]
 		extern "rust-call" fn call_once(self, args: I) -> Self::Output {
 			self.f.call_once(args)
 		}
 	}
-	impl<F, I> ops::FnMut<I> for FnMut<F>
+
+	#[cfg(not(nightly))]
+	impl<F, I> super::traits::FnMut<I> for FnMut<F>
+	where
+		F: internal::FnMut<I>,
+	{
+		#[inline(always)]
+		fn call_mut(&mut self, args: I) -> Self::Output {
+			self.f.call_mut(args)
+		}
+	}
+	#[cfg(nightly)]
+	impl<F, I> std::ops::FnMut<I> for FnMut<F>
 	where
 		F: internal::FnMut<I>,
 	{
@@ -365,6 +811,7 @@ pub mod structs {
 			self.f.call_mut(args)
 		}
 	}
+
 	impl<F> Debug for FnMut<F>
 	where
 		F: Debug,
@@ -394,10 +841,11 @@ pub mod structs {
 
 
 	/// A struct representing a serializable closure, created by the
-	/// [`Fn`](macro@Fn) macro. Implements [`std::ops::Fn`], [`Debug`],
-	/// [`Serialize`] and [`Deserialize`], and various convenience traits.
+	/// [`Fn`](macro@super::Fn) macro. Implements [`traits::Fn`](super::traits::Fn)
+	/// (and [`std::ops::Fn`] on nightly), [`Debug`], [`Serialize`] and
+	/// [`Deserialize`], and various convenience traits.
 	///
-	/// See the [readme](self) for examples.
+	/// See the [readme](super) for examples.
 	#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 	#[serde(transparent)]
 	pub struct Fn<F> {
@@ -414,17 +862,44 @@ pub mod structs {
 			Self { f }
 		}
 	}
-	impl<F, I> ops::FnOnce<I> for Fn<F>
+
+	#[cfg(not(nightly))]
+	impl<F, I> super::traits::FnOnce<I> for Fn<F>
 	where
 		F: internal::FnOnce<I>,
 	{
 		type Output = F::Output;
+
+		#[inline(always)]
+		fn call_once(self, args: I) -> Self::Output {
+			self.f.call_once(args)
+		}
+	}
+	#[cfg(nightly)]
+	impl<F, I> std::ops::FnOnce<I> for Fn<F>
+	where
+		F: internal::FnOnce<I>,
+	{
+		type Output = F::Output;
+
 		#[inline(always)]
 		extern "rust-call" fn call_once(self, args: I) -> Self::Output {
 			self.f.call_once(args)
 		}
 	}
-	impl<F, I> ops::FnMut<I> for Fn<F>
+
+	#[cfg(not(nightly))]
+	impl<F, I> super::traits::FnMut<I> for Fn<F>
+	where
+		F: internal::FnMut<I>,
+	{
+		#[inline(always)]
+		fn call_mut(&mut self, args: I) -> Self::Output {
+			self.f.call_mut(args)
+		}
+	}
+	#[cfg(nightly)]
+	impl<F, I> std::ops::FnMut<I> for Fn<F>
 	where
 		F: internal::FnMut<I>,
 	{
@@ -433,7 +908,19 @@ pub mod structs {
 			self.f.call_mut(args)
 		}
 	}
-	impl<F, I> ops::Fn<I> for Fn<F>
+
+	#[cfg(not(nightly))]
+	impl<F, I> super::traits::Fn<I> for Fn<F>
+	where
+		F: internal::Fn<I>,
+	{
+		#[inline(always)]
+		fn call(&self, args: I) -> Self::Output {
+			self.f.call(args)
+		}
+	}
+	#[cfg(nightly)]
+	impl<F, I> std::ops::Fn<I> for Fn<F>
 	where
 		F: internal::Fn<I>,
 	{
@@ -442,6 +929,7 @@ pub mod structs {
 			self.f.call(args)
 		}
 	}
+
 	impl<F> Debug for Fn<F>
 	where
 		F: Debug,

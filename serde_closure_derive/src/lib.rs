@@ -7,57 +7,151 @@
 //! This library provides macros that wrap closures to make them serializable
 //! and debuggable.
 //!
-//! See [`serde_closure`](https://docs.rs/serde_closure/) for
+//! See [`serde_closure`](https://docs.rs/serde_closure) for
 //! documentation.
 
-#![doc(html_root_url = "https://docs.rs/serde_closure_derive/0.2.13")]
-#![feature(proc_macro_diagnostic)]
+#![doc(html_root_url = "https://docs.rs/serde_closure_derive/0.3.2")]
 
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::{collections::HashSet, iter, iter::successors, mem::take, str};
 use syn::{
-	parse::{Parse, ParseStream}, parse2, spanned::Spanned, token::Bracket, Arm, Block, Error, Expr, ExprArray, ExprAssign, ExprAssignOp, ExprAsync, ExprAwait, ExprBinary, ExprBlock, ExprBox, ExprBreak, ExprCall, ExprCast, ExprClosure, ExprField, ExprForLoop, ExprGroup, ExprIf, ExprIndex, ExprLet, ExprLoop, ExprMacro, ExprMatch, ExprMethodCall, ExprParen, ExprPath, ExprRange, ExprReference, ExprRepeat, ExprReturn, ExprStruct, ExprTry, ExprTryBlock, ExprTuple, ExprType, ExprUnary, ExprUnsafe, ExprWhile, ExprYield, FieldValue, Ident, Local, Member, Pat, PatBox, PatIdent, PatReference, PatSlice, PatTuple, PatTupleStruct, PatType, Path, PathArguments, PathSegment, Stmt, Type, TypeInfer, TypeReference, UnOp
+	parse2, parse_macro_input, visit_mut::{self, VisitMut}, Arm, AttributeArgs, Block, Error, Expr, ExprArray, ExprAssign, ExprAssignOp, ExprAsync, ExprAwait, ExprBinary, ExprBlock, ExprBox, ExprBreak, ExprCall, ExprCast, ExprClosure, ExprField, ExprForLoop, ExprGroup, ExprIf, ExprIndex, ExprLet, ExprLoop, ExprMacro, ExprMatch, ExprMethodCall, ExprParen, ExprPath, ExprRange, ExprReference, ExprRepeat, ExprReturn, ExprStruct, ExprTry, ExprTryBlock, ExprTuple, ExprType, ExprUnary, ExprUnsafe, ExprWhile, ExprYield, FieldValue, GenericParam, Ident, ImplItem, Item, ItemImpl, Lifetime, LifetimeDef, Local, Member, Pat, PatBox, PatIdent, PatReference, PatSlice, PatTuple, PatTupleStruct, PatType, Path, PathArguments, PathSegment, ReturnType, Stmt, TraitBound, Type, TypeInfer, TypeReference, TypeTuple, UnOp
 };
 
 #[proc_macro]
 #[allow(non_snake_case)]
 pub fn Fn(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-	syn::parse::<Closure>(input)
-		.and_then(|closure| impl_fn_once(closure, Kind::Fn))
+	syn::parse::<ExprClosure>(input)
+		.and_then(|closure| impl_closure(closure, Kind::Fn))
 		.unwrap_or_else(|err| err.to_compile_error())
 		.into()
 }
 #[proc_macro]
 #[allow(non_snake_case)]
 pub fn FnMut(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-	syn::parse::<Closure>(input)
-		.and_then(|closure| impl_fn_once(closure, Kind::FnMut))
+	syn::parse::<ExprClosure>(input)
+		.and_then(|closure| impl_closure(closure, Kind::FnMut))
 		.unwrap_or_else(|err| err.to_compile_error())
 		.into()
 }
 #[proc_macro]
 #[allow(non_snake_case)]
 pub fn FnOnce(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-	syn::parse::<Closure>(input)
-		.and_then(|closure| impl_fn_once(closure, Kind::FnOnce))
+	syn::parse::<ExprClosure>(input)
+		.and_then(|closure| impl_closure(closure, Kind::FnOnce))
 		.unwrap_or_else(|err| err.to_compile_error())
 		.into()
 }
 
-struct Closure {
-	env: Option<ExprArray>,
-	closure: ExprClosure,
+#[proc_macro_attribute]
+pub fn desugar(
+	attr: proc_macro::TokenStream, item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+	let args: AttributeArgs = parse_macro_input!(attr);
+	assert_eq!(args.len(), 0);
+	let mut item = match syn::parse::<Item>(item) {
+		Err(err) => return err.to_compile_error().into(),
+		Ok(item) => item,
+	};
+	Desugar.visit_item_mut(&mut item);
+	item.into_token_stream().into()
 }
-impl Parse for Closure {
-	fn parse(input: ParseStream) -> Result<Self, Error> {
-		let env = if input.peek(Bracket) {
-			Some(input.parse()?)
+
+struct Desugar;
+
+impl Desugar {
+	fn desugar_path_arg(
+		&mut self, arg: &mut PathArguments, return_output: bool,
+	) -> (u64, Option<Type>) {
+		if let PathArguments::Parenthesized(args) = &arg {
+			let span = Span::call_site();
+			let mut lifetimes = 0;
+			let mut inputs = args.inputs.clone();
+			for input in &mut inputs {
+				match input {
+					Type::Reference(TypeReference { lifetime, .. }) if lifetime.is_none() => {
+						*lifetime = Some(Lifetime::new(
+							&format!(
+								"'__serde_closure_{}",
+								bijective_base(lifetimes, 26, alpha_lower)
+							),
+							span,
+						));
+						lifetimes += 1;
+					}
+					_ => (),
+				}
+			}
+			if !inputs.empty_or_trailing() {
+				inputs.push_punct(Default::default());
+			}
+			let output = match &args.output {
+				ReturnType::Type(_, type_) => (&**type_).clone(),
+				ReturnType::Default => Type::Tuple(TypeTuple {
+					paren_token: Default::default(),
+					elems: Default::default(),
+				}),
+			};
+			*arg = PathArguments::AngleBracketed(if !return_output {
+				syn::parse2(quote! { <(#inputs), Output = #output> }).unwrap()
+			} else {
+				syn::parse2(quote! { <(#inputs)> }).unwrap()
+			});
+			(lifetimes, if return_output { Some(output) } else { None })
 		} else {
-			None
-		};
-		let closure = input.parse()?;
-		Ok(Closure { env, closure })
+			(0, None)
+		}
+	}
+}
+
+impl VisitMut for Desugar {
+	fn visit_trait_bound_mut(&mut self, i: &mut TraitBound) {
+		let lifetimes = self
+			.desugar_path_arg(&mut i.path.segments.last_mut().unwrap().arguments, false)
+			.0;
+		if lifetimes > 0 {
+			let span = Span::call_site();
+			let empty = syn::parse2(quote! {for <>}).unwrap();
+			i.lifetimes = Some(i.lifetimes.clone().unwrap_or(empty));
+			i.lifetimes
+				.as_mut()
+				.unwrap()
+				.lifetimes
+				.extend((0..lifetimes).map(|i| {
+					LifetimeDef::new(Lifetime::new(
+						&format!("'__serde_closure_{}", bijective_base(i, 26, alpha_lower)),
+						span,
+					))
+				}));
+		}
+		visit_mut::visit_trait_bound_mut(self, i)
+	}
+	fn visit_item_impl_mut(&mut self, i: &mut ItemImpl) {
+		if let Some((_, path, _)) = &mut i.trait_ {
+			let (lifetimes, output) =
+				self.desugar_path_arg(&mut path.segments.last_mut().unwrap().arguments, true);
+			if lifetimes > 0 {
+				let span = Span::call_site();
+				i.generics.lt_token = Some(Default::default());
+				i.generics.gt_token = Some(Default::default());
+				i.generics.params.extend((0..lifetimes).map(|i| {
+					GenericParam::Lifetime(LifetimeDef::new(Lifetime::new(
+						&format!("'__serde_closure_{}", bijective_base(i, 26, alpha_lower)),
+						span,
+					)))
+				}));
+			}
+			// Yuck
+			if path.segments.last().unwrap().ident == "FnOnce" {
+				if let Some(output) = output {
+					i.items.push(ImplItem::Type(
+						syn::parse2(quote! { type Output = #output; }).unwrap(),
+					));
+				}
+			}
+		}
+		visit_mut::visit_item_impl_mut(self, i)
 	}
 }
 
@@ -78,7 +172,7 @@ impl Kind {
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
+fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Error> {
 	let span = Span::call_site(); // TODO: def_site() https://github.com/rust-lang/rust/issues/54724
 	let name_string = kind.name();
 	let name = Ident::new(name_string, span);
@@ -87,8 +181,6 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 	let env_types_name = Ident::new("__serde_closure_env_types", span);
 	let impls_name = Ident::new("__serde_closure_impls", span);
 
-	let _ = closure.env;
-	let mut closure = closure.closure;
 	let source = closure.to_token_stream().to_string();
 	let capture = closure.capture.is_some();
 	// Convert closure to use block so any not_env_variables can be asserted.
@@ -145,12 +237,14 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 		pat => (*pat).clone(),
 	});
 	let input_types = closure.inputs.iter().map(pat_to_type);
-	// let line_number = format!(" {}:{}:{}", closure.span().source_file(), closure.span().start().line, closure.span().start().column);
 
 	let type_params = &(0..env_variables.len())
 		.map(|i| {
 			Ident::new(
-				&format!("__SERDE_CLOSURE_{}", bijective_base(i as u64, 26, alpha)),
+				&format!(
+					"__SERDE_CLOSURE_{}",
+					bijective_base(i as u64, 26, alpha_upper)
+				),
 				span,
 			)
 		})
@@ -203,6 +297,7 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 				F: ops::FnOnce(&#name<#(#type_params,)* ()>,I) -> O
 			{
 				type Output = O;
+
 				#[inline(always)]
 				fn call_once(self, args: I) -> Self::Output {
 					self.f()(&self.strip_f(), args)
@@ -233,6 +328,7 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 				F: ops::FnOnce(&mut #name<#(#type_params,)* ()>,I) -> O
 			{
 				type Output = O;
+
 				#[inline(always)]
 				fn call_once(mut self, args: I) -> Self::Output {
 					self.f()(&mut self.strip_f(), args)
@@ -254,6 +350,7 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 				F: ops::FnOnce(#name<#(#type_params,)* ()>,I) -> O
 			{
 				type Output = O;
+
 				#[inline(always)]
 				fn call_once(self, args: I) -> Self::Output {
 					self.f()(self.strip_f(), args)
@@ -268,7 +365,7 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 	Ok(quote! {
 		{
 			mod #impls_name {
-				#![allow(warnings, unsafe_code)]
+				#![allow(warnings)]
 				use ::serde_closure::{
 					internal::{self, is_phantom, to_phantom},
 					structs,
@@ -317,11 +414,16 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 				}
 				impl<#(#type_params,)* F> #name<#(#type_params,)* F> {
 					fn f(&self) -> F {
-						// This is safe as an F has already been materialized (so we
-						// know it isn't uninhabited), it's Copy, it's not Drop, and
-						// its size is zero.
+						// This is safe as an F has already been materialized (so we know it isn't
+						// uninhabited), it's Copy, it's not Drop, its size is zero. Most
+						// importantly, thanks to the `use Type` static assertion, we're guaranteed
+						// not to be capturing anything other than `env_types_name`. Related:
+						// https://internals.rust-lang.org/t/is-synthesizing-zero-sized-values-safe/11506
 						unsafe { MaybeUninit::uninit().assume_init() }
 					}
+					// Strip F due to https://play.rust-lang.org/?edition=2018&gist=a2936c8b5abb13357d97bf835203b153
+					// Another struct could hold env vars and avoid these unsafes but that slightly
+					// increases complexity?
 					fn strip_f(self) -> #name<#(#type_params,)* ()> {
 						#name {
 							#( #env_variables: self.#env_variables, )*
@@ -471,7 +573,7 @@ fn impl_fn_once(closure: Closure, kind: Kind) -> Result<TokenStream, Error> {
 					#body
 				};
 
-			#[allow(warnings, unsafe_code)]
+			#[allow(warnings)]
 			{
 				if false {
 					let _ = closure(#ret_ref, loop {});
@@ -738,11 +840,7 @@ impl<'a> State<'a> {
 			{
 				let path_segment = &path.segments.first().unwrap();
 				let ident = &path_segment.ident;
-				let has_path_arguments = if let PathArguments::None = path_segment.arguments {
-					false
-				} else {
-					true
-				};
+				let has_path_arguments = !matches!(path_segment.arguments, PathArguments::None);
 				if !self.variables.contains(ident) {
 					// Assume it's a variable, unless:
 					// * It starts with an upper-case letter, e.g. `Some`, OR
@@ -752,14 +850,8 @@ impl<'a> State<'a> {
 						|| is_func || has_path_arguments)
 					{
 						let _ = self.env_variables.insert(ident.clone());
-						let mut a = if !self.env_struct {
-							Expr::Path(ExprPath {
-								attrs: attrs.clone(),
-								qself: None,
-								path: path.clone(),
-							})
-						} else {
-							Expr::Field(ExprField {
+						if self.env_struct {
+							let mut a = Expr::Field(ExprField {
 								attrs: vec![],
 								base: Box::new(Expr::Path(ExprPath {
 									attrs: attrs.clone(),
@@ -775,20 +867,20 @@ impl<'a> State<'a> {
 								})),
 								dot_token: Default::default(),
 								member: Member::Named(ident.clone()),
-							})
-						};
-						if self.deref {
-							a = Expr::Unary(ExprUnary {
+							});
+							if self.deref {
+								a = Expr::Unary(ExprUnary {
+									attrs: vec![],
+									op: UnOp::Deref(Default::default()),
+									expr: Box::new(a),
+								});
+							}
+							*expr = Expr::Paren(ExprParen {
 								attrs: vec![],
-								op: UnOp::Deref(Default::default()),
+								paren_token: Default::default(),
 								expr: Box::new(a),
 							});
 						}
-						*expr = Expr::Paren(ExprParen {
-							attrs: vec![],
-							paren_token: Default::default(),
-							expr: Box::new(a),
-						});
 					} else {
 						let _ = self.not_env_variables.insert(ident.clone());
 					}
@@ -827,10 +919,12 @@ impl<'a> State<'a> {
 					};
 					mac.tokens = expr.args.to_token_stream();
 				} else {
-					mac.span()
-						.unwrap()
-						.warning("See https://github.com/alecmocatta/serde_closure/issues/16")
-						.emit()
+					panic!("See https://github.com/alecmocatta/serde_closure/issues/16");
+					// proc_macro_diagnostic: https://github.com/rust-lang/rust/issues/54140
+					// mac.span()
+					// 	.unwrap()
+					// 	.warning("See https://github.com/alecmocatta/serde_closure/issues/16")
+					// 	.emit()
 				}
 			}
 			_ => (),
@@ -839,9 +933,14 @@ impl<'a> State<'a> {
 }
 
 #[inline(always)]
-fn alpha(u: u8) -> u8 {
+fn alpha_upper(u: u8) -> u8 {
 	assert!(u < 26);
 	u + b'A'
+}
+#[inline(always)]
+fn alpha_lower(u: u8) -> u8 {
+	assert!(u < 26);
+	u + b'a'
 }
 const BUF_SIZE: usize = 64; // u64::max_value() in base 2
 fn bijective_base(n: u64, base: u64, digits: impl Fn(u8) -> u8) -> String {
@@ -865,18 +964,18 @@ fn bijective_base(n: u64, base: u64, digits: impl Fn(u8) -> u8) -> String {
 #[test]
 fn bijective_base_test() {
 	for i in 0..=26 + 26 * 26 + 26 * 26 * 26 {
-		let _ = bijective_base(i, 26, alpha);
+		let _ = bijective_base(i, 26, alpha_upper);
 	}
 	assert_eq!(
-		bijective_base(26 + 26 * 26 + 26 * 26 * 26, 26, alpha),
+		bijective_base(26 + 26 * 26 + 26 * 26 * 26, 26, alpha_upper),
 		"AAAA"
 	);
 	assert_eq!(
-		bijective_base(u64::max_value(), 3, alpha),
+		bijective_base(u64::max_value(), 3, alpha_upper),
 		"AAAABBABCBBABBAABCCAACCCACAACACCACCBAABBA"
 	);
 	assert_eq!(
-		bijective_base(u64::max_value(), 2, alpha),
+		bijective_base(u64::max_value(), 2, alpha_upper),
 		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB"
 	);
 }

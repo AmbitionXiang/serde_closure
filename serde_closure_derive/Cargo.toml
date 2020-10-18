@@ -1,6 +1,6 @@
 [package]
 name = "serde_closure_derive"
-version = "0.2.13"
+version = "0.3.2"
 license = "MIT OR Apache-2.0"
 authors = ["Alec Mocatta <alec@mocatta.net>"]
 categories = ["development-tools","encoding","rust-patterns","network-programming"]
@@ -14,7 +14,7 @@ See https://crates.io/crates/serde_closure for documentation.
 """
 repository = "https://github.com/alecmocatta/serde_closure"
 homepage = "https://github.com/alecmocatta/serde_closure"
-documentation = "https://docs.rs/serde_closure/0.2.13"
+documentation = "https://docs.rs/serde_closure"
 edition = "2018"
 
 [badges]
@@ -25,8 +25,7 @@ maintenance = { status = "actively-developed" }
 proc-macro = true
 
 [dependencies]
-proc-macro2 = { version = "1.0.1", default-features = false, features = ["span-locations"] }
+proc-macro2 = { version = "1.0.1", default-features = false }
 quote = { version = "1.0.2", default-features = false }
-syn = { version = "1.0.5", default-features = false, features = ["clone-impls", "full", "parsing", "printing", "proc-macro"] }
+syn = { version = "1.0.38", default-features = false, features = ["clone-impls", "full", "parsing", "printing", "proc-macro", "visit-mut"] }
 bincode = "1.2.1"
-
