@@ -180,6 +180,13 @@
 )] // from https://github.com/rust-unofficial/patterns/blob/master/anti_patterns/deny-warnings.md
 #![allow(clippy::inline_always)]
 
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+
+#[cfg(not(target_env = "sgx"))]
+#[macro_use]
+extern crate sgx_tstd as std;
+
 /// Macro that wraps a closure, evaluating to a [`FnOnce`](structs::FnOnce)
 /// struct that implements [`traits::FnOnce`] (and [`std::ops::FnOnce`] on
 /// nightly), [`Debug`](std::fmt::Debug), [`Serialize`](serde::Serialize) and
@@ -423,7 +430,6 @@ macro_rules! FnNamed {
 pub mod internal {
 	pub use core;
 	pub use serde;
-	pub use std;
 
 	use std::marker::PhantomData;
 
@@ -481,7 +487,7 @@ pub mod traits {
 	//! See the [readme](super) for examples.
 
 	#![allow(non_snake_case)]
-
+	use std::boxed::Box;
 	use std::ops;
 
 	/// Supertrait of [`std::ops::FnOnce`] that is usable on stable Rust. It is
@@ -656,7 +662,10 @@ pub mod structs {
 	//! See the [readme](super) for examples.
 
 	use serde::{Deserialize, Serialize};
+	use std::boxed::Box;
 	use std::fmt::{self, Debug};
+	use std::vec::Vec;
+
 
 	use super::internal;
 

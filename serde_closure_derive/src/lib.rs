@@ -11,6 +11,14 @@
 //! documentation.
 
 #![doc(html_root_url = "https://docs.rs/serde_closure_derive/0.3.2")]
+/* 
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+
+#[cfg(not(target_env = "sgx"))]
+#[macro_use]
+extern crate sgx_tstd as std;
+*/
 
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -383,7 +391,8 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 					option::Option::{self, Some},
 				};
 				use self::internal::serde::{Deserialize, Serialize};
-				use self::internal::std::{process::abort, string::{String, ToString}, vec::Vec};
+				//use self::internal::std::{process::abort, string::{String, ToString}, vec::Vec};
+				use std::{string::{String, ToString}, vec::Vec};
 				const SOURCE: &str = #source;
 				#[derive(Serialize, Deserialize)]
 				#[serde(
@@ -403,9 +412,11 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 						}
 					}
 					pub fn with_f<F1>(self, f: F1) -> #name<#(#type_params,)* F1> where F1: Copy {
+						/*
 						if size_of::<F1>() != 0 {
 							abort();
 						}
+						*/
 						#name {
 							#( #env_variables: self.#env_variables, )*
 							__serde_closure_marker: PhantomData
