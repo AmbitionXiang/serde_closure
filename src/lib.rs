@@ -663,7 +663,7 @@ pub mod structs {
     /// This trait helps getting captured variables
     pub trait Peep {
         #[doc(hidden)]
-        fn get_ser_captured_var(&self) -> Vec<u8>;
+        fn get_ser_captured_var(&self) -> Vec<Vec<u8>>;
     }
 
 	/// A struct representing a serializable closure, created by the
@@ -728,7 +728,7 @@ pub mod structs {
     where 
         F: Peep,
     {
-        fn get_ser_captured_var(&self) -> Vec<u8> {
+        fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
         }
     }
@@ -737,7 +737,7 @@ pub mod structs {
     where 
         F: Peep,
     {
-        fn get_ser_captured_var(&self) -> Vec<u8> {
+        fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
         }
     }
@@ -825,7 +825,7 @@ pub mod structs {
     where 
         F: Peep,
     {
-        fn get_ser_captured_var(&self) -> Vec<u8> {
+        fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
         }
     }
@@ -834,7 +834,7 @@ pub mod structs {
     where 
         F: Peep,
     {
-        fn get_ser_captured_var(&self) -> Vec<u8> {
+        fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
         }
     }
@@ -943,7 +943,7 @@ pub mod structs {
     where 
         F: Peep,
     {
-        fn get_ser_captured_var(&self) -> Vec<u8> {
+        fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
         }
     }
@@ -952,7 +952,7 @@ pub mod structs {
     where 
         F: Peep,
     {
-        fn get_ser_captured_var(&self) -> Vec<u8> {
+        fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
         }
     }

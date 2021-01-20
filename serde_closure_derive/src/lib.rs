@@ -529,9 +529,9 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
                 where 
                     #(#type_params: Serialize,)*
                 {
-                    fn get_ser_captured_var(&self) -> Vec<u8> {
+                    fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
                         let mut v = Vec::new();
-                        #( v.append(&mut bincode::serialize(&self.#env_variables).unwrap()); )*
+                        #( v.push(bincode::serialize(&self.#env_variables).unwrap()); )*
                         v
                     }
                 }
