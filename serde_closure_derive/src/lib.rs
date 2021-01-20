@@ -544,7 +544,17 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
                         let mut v = Vec::new();
                         #( v.push(bincode::serialize(&self.#env_variables).unwrap()); )*
                         v
-                    }
+					}
+					
+					fn has_captured_var(&self) -> bool {
+                        let mut size = 0;
+                        #( size += size_of_val(&self.#env_variables); )*
+                        match size {
+							0 => false,
+							_ => true,
+						}
+					}
+
                 }
 
 				#fn_impl
