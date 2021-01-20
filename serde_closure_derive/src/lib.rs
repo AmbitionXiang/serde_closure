@@ -378,7 +378,7 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 					fmt::{self, Debug},
 					hash::{self, Hash},
 					marker::{Copy, PhantomData},
-					mem::{self, size_of, MaybeUninit},
+					mem::{self, size_of, size_of_val, MaybeUninit},
 					ops,
 					option::Option::{self, Some},
 				};
@@ -533,7 +533,29 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
                         let mut v = Vec::new();
                         #( v.push(bincode::serialize(&self.#env_variables).unwrap()); )*
                         v
-                    }
+					}
+					
+					/*
+					fn deser_captured_var(&self, ser: Vec<Vec<u8>>) -> (( #type_params, )*) {
+						let mut idx = 0;
+						#( 
+							let #env_variables: #type_params = bincode::deserialize(ser[idx]).unwrap(); 
+							idx += 1;
+						)*
+						let res = (#( #env_variables, )*);
+						res
+					}
+					*/
+
+					fn has_captured_var(&self) -> bool {
+                        let mut size = 0;
+                        #( size += size_of_val(&self.#env_variables); )*
+                        match size {
+							0 => false,
+							_ => true,
+						}
+					}
+
                 }
 
 				#fn_impl

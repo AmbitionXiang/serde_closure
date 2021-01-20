@@ -663,7 +663,9 @@ pub mod structs {
     /// This trait helps getting captured variables
     pub trait Peep {
         #[doc(hidden)]
-        fn get_ser_captured_var(&self) -> Vec<Vec<u8>>;
+		fn get_ser_captured_var(&self) -> Vec<Vec<u8>>;
+		#[doc(hidden)]
+		fn has_captured_var(&self) -> bool;
     }
 
 	/// A struct representing a serializable closure, created by the
@@ -730,7 +732,11 @@ pub mod structs {
     {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
-        }
+		}
+		
+		fn has_captured_var(&self) -> bool {
+			self.f.has_captured_var()
+		}
     }
 
     impl<F> Peep for Box<FnOnce<F>>
@@ -739,7 +745,11 @@ pub mod structs {
     {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
-        }
+		}
+		
+		fn has_captured_var(&self) -> bool {
+			self.f.has_captured_var()
+		}
     }
 
 	/// A struct representing a serializable closure, created by the
@@ -827,7 +837,11 @@ pub mod structs {
     {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
-        }
+		}
+		
+		fn has_captured_var(&self) -> bool {
+			self.f.has_captured_var()
+		}
     }
     
     impl<F> Peep for Box<FnMut<F>>
@@ -836,7 +850,11 @@ pub mod structs {
     {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
-        }
+		}
+		
+		fn has_captured_var(&self) -> bool {
+			self.f.has_captured_var()
+		}
     }
 
 
@@ -945,7 +963,11 @@ pub mod structs {
     {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
-        }
+		}
+		
+		fn has_captured_var(&self) -> bool {
+			self.f.has_captured_var()
+		}
     }
     
     impl<F> Peep for Box<Fn<F>>
@@ -954,7 +976,11 @@ pub mod structs {
     {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
-        }
+		}
+		
+		fn has_captured_var(&self) -> bool {
+			self.f.has_captured_var()
+		}
     }
 
 }
