@@ -382,7 +382,7 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 					ops,
 					option::Option::{self, Some},
 				};
-				use self::internal::serde::{Deserialize, Serialize};
+				use self::internal::serde::{Deserialize, de::DeserializeOwned, Serialize};
 				use self::internal::std::{process::abort, string::{String, ToString}, vec::Vec};
 				const SOURCE: &str = #source;
 				#[derive(Serialize, Deserialize)]
@@ -527,7 +527,7 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 				}
                 impl<#(#type_params,)* F> structs::Peep for #name<#(#type_params,)* F>
                 where 
-                    #(#type_params: Serialize,)*
+                    #(#type_params: Serialize + DeserializeOwned, )*
                 {
                     fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
                         let mut v = Vec::new();
@@ -538,7 +538,7 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 					fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
 						let mut idx = 0;
 						#( 
-							self.#env_variables: #type_params = bincode::deserialize(ser[idx]).unwrap(); 
+							self.#env_variables: #type_params = bincode::deserialize(&ser[idx]).unwrap(); 
 							idx += 1;
 						)*
 					}
