@@ -665,6 +665,8 @@ pub mod structs {
         #[doc(hidden)]
 		fn get_ser_captured_var(&self) -> Vec<Vec<u8>>;
 		#[doc(hidden)]
+		fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>);
+		#[doc(hidden)]
 		fn has_captured_var(&self) -> bool;
     }
 
@@ -733,6 +735,10 @@ pub mod structs {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
 		}
+
+		fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
+			self.f.deser_captured_var(ser)
+		}
 		
 		fn has_captured_var(&self) -> bool {
 			self.f.has_captured_var()
@@ -745,6 +751,10 @@ pub mod structs {
     {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
+		}
+
+		fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
+			self.f.deser_captured_var(ser)
 		}
 		
 		fn has_captured_var(&self) -> bool {
@@ -838,6 +848,10 @@ pub mod structs {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
 		}
+
+		fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
+			self.f.deser_captured_var(ser)
+		}
 		
 		fn has_captured_var(&self) -> bool {
 			self.f.has_captured_var()
@@ -850,6 +864,10 @@ pub mod structs {
     {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
+		}
+
+		fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
+			self.f.deser_captured_var(ser)
 		}
 		
 		fn has_captured_var(&self) -> bool {
@@ -964,6 +982,10 @@ pub mod structs {
         fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
             self.f.get_ser_captured_var()
 		}
+
+		fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
+			self.f.deser_captured_var(ser)
+		}
 		
 		fn has_captured_var(&self) -> bool {
 			self.f.has_captured_var()
@@ -978,6 +1000,10 @@ pub mod structs {
             self.f.get_ser_captured_var()
 		}
 		
+		fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
+			self.f.deser_captured_var(ser)
+		}
+
 		fn has_captured_var(&self) -> bool {
 			self.f.has_captured_var()
 		}

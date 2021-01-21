@@ -425,16 +425,19 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 					// Another struct could hold env vars and avoid these unsafes but that slightly
 					// increases complexity?
 					fn strip_f(self) -> #name<#(#type_params,)* ()> {
+						println!("strip_f");
 						#name {
 							#( #env_variables: self.#env_variables, )*
 							__serde_closure_marker: PhantomData
 						}
 					}
 					fn strip_f_ref(&self) -> &#name<#(#type_params,)* ()> {
+						println!("strip_f_ref");
 						// This is safe as the size and alignment don't change
 						unsafe { &*(self as *const _ as *const _) }
 					}
 					fn strip_f_mut(&mut self) -> &mut #name<#(#type_params,)* ()> {
+						println!("strip_f_mut");
 						// This is safe as the size and alignment don't change
 						unsafe { &mut *(self as *mut _ as *mut _) }
 					}
@@ -535,17 +538,13 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
                         v
 					}
 					
-					/*
-					fn deser_captured_var(&self, ser: Vec<Vec<u8>>) -> (( #type_params, )*) {
+					fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
 						let mut idx = 0;
 						#( 
-							let #env_variables: #type_params = bincode::deserialize(ser[idx]).unwrap(); 
+							self.#env_variables: #type_params = bincode::deserialize(ser[idx]).unwrap(); 
 							idx += 1;
 						)*
-						let res = (#( #env_variables, )*);
-						res
 					}
-					*/
 
 					fn has_captured_var(&self) -> bool {
                         let mut size = 0;
