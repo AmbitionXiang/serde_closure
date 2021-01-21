@@ -386,7 +386,7 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 					fmt::{self, Debug},
 					hash::{self, Hash},
 					marker::{Copy, PhantomData},
-					mem::{self, size_of, MaybeUninit},
+					mem::{self, size_of, size_of_val, MaybeUninit},
 					ops,
 					option::Option::{self, Some},
 				};
