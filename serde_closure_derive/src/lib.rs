@@ -545,6 +545,14 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
                         #( v.push(bincode::serialize(&self.#env_variables).unwrap()); )*
                         v
 					}
+
+					fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
+						let mut idx = 0;
+						#( 
+							self.#env_variables: #type_params = bincode::deserialize(ser[idx]).unwrap(); 
+							idx += 1;
+						)*
+					}
 					
 					fn has_captured_var(&self) -> bool {
                         let mut size = 0;
