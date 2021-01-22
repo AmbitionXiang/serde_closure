@@ -525,7 +525,8 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 							.finish()
 					}
 				}
-                impl<#(#type_params,)* F> structs::Peep for #name<#(#type_params,)* F>
+
+				impl<#(#type_params,)* F> structs::Peep for #name<#(#type_params,)* F>
                 where 
                     #(#type_params: Serialize + DeserializeOwned, )*
                 {
@@ -538,7 +539,7 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 					fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
 						let mut idx = 0;
 						#( 
-							self.#env_variables: #type_params = bincode::deserialize(&ser[idx]).unwrap(); 
+							self.#env_variables = bincode::deserialize::<#type_params>(&ser[idx]).unwrap(); 
 							idx += 1;
 						)*
 					}
@@ -551,7 +552,6 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 							_ => true,
 						}
 					}
-
                 }
 
 				#fn_impl

@@ -167,6 +167,7 @@
 
 #![doc(html_root_url = "https://docs.rs/serde_closure/0.3.2")]
 #![cfg_attr(nightly, feature(unboxed_closures, fn_traits))]
+#![feature(specialization)]
 #![warn(
 	missing_copy_implementations,
 	missing_debug_implementations,
@@ -669,6 +670,21 @@ pub mod structs {
 		#[doc(hidden)]
 		fn has_captured_var(&self) -> bool;
     }
+
+	impl<T> Peep for T
+	{
+		default fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
+			Vec::new()
+		}
+		
+		default fn deser_captured_var(&mut self, ser: Vec<Vec<u8>>) {
+			assert!(ser.is_empty())
+		}
+
+		default fn has_captured_var(&self) -> bool {
+			false
+		}
+	}
 
 	/// A struct representing a serializable closure, created by the
 	/// [`FnOnce`](macro@super::FnOnce) macro. Implements [`traits::FnOnce`](super::traits::FnOnce)
