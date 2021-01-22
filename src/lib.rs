@@ -166,8 +166,7 @@
 //! [`serde`](https://github.com/serde-rs/serde).
 
 #![doc(html_root_url = "https://docs.rs/serde_closure/0.3.2")]
-#![cfg_attr(nightly, feature(unboxed_closures, fn_traits))]
-#![feature(specialization)]
+#![cfg_attr(nightly, feature(unboxed_closures, fn_traits, specialization))]
 #![warn(
 	missing_copy_implementations,
 	missing_debug_implementations,
