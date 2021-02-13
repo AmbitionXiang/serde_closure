@@ -655,10 +655,39 @@ pub mod structs {
 	//!
 	//! See the [readme](super) for examples.
 
-	use serde::{Deserialize, Serialize};
+	use serde::{de::DeserializeOwned, Deserialize, Serialize};
 	use std::fmt::{self, Debug};
 
 	use super::internal;
+	#[doc(hidden)]
+	pub trait MaybeSerializable {
+		#[doc(hidden)]
+		fn serialize(&self) -> Option<Vec<u8>>;
+		#[doc(hidden)]
+		fn deserialize(&mut self, bytes: &Vec<u8>) -> bool;  
+	}
+
+	impl<T> MaybeSerializable for T {
+		default fn serialize(&self) -> Option<Vec<u8>> {
+			None
+		}
+		default fn deserialize(&mut self, bytes: &Vec<u8>) -> bool {
+			false
+		}  
+	}
+
+	impl<T> MaybeSerializable for T 
+	where T: Serialize + DeserializeOwned + 'static
+	{
+		fn serialize(&self) -> Option<Vec<u8>> {
+			Some(bincode::serialize(self).unwrap())
+		}
+
+		fn deserialize(&mut self, bytes: &Vec<u8>) -> bool {
+			*self = bincode::deserialize(bytes).unwrap();
+			true
+		}  
+	}
 
     /// This trait helps getting captured variables
     pub trait Peep {

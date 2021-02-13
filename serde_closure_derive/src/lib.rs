@@ -368,7 +368,7 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 				#![allow(warnings)]
 				use ::serde_closure::{
 					internal::{self, is_phantom, to_phantom},
-					structs,
+					structs::{self, MaybeSerializable},
 				};
 				use self::internal::core::{
 					any::type_name,
@@ -382,7 +382,7 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 					ops,
 					option::Option::{self, Some},
 				};
-				use self::internal::serde::{Deserialize, de::DeserializeOwned, Serialize};
+				use self::internal::serde::{Deserialize, Serialize};
 				use self::internal::std::{process::abort, string::{String, ToString}, vec::Vec};
 				const SOURCE: &str = #source;
 				#[derive(Serialize, Deserialize)]
@@ -528,19 +528,26 @@ fn impl_closure(mut closure: ExprClosure, kind: Kind) -> Result<TokenStream, Err
 
 				impl<#(#type_params,)* F> structs::Peep for #name<#(#type_params,)* F>
                 where 
-                    #(#type_params: Serialize + DeserializeOwned, )*
+                    #(#type_params: MaybeSerializable, )*
                 {
                     fn get_ser_captured_var(&self) -> Vec<Vec<u8>> {
                         let mut v = Vec::new();
-                        #( v.push(bincode::serialize(&self.#env_variables).unwrap()); )*
+                        #( 
+							let ser = self.#env_variables.serialize();
+							if ser.is_some() {
+								v.push(ser.unwrap()); 
+							}
+						)*
                         v
 					}
 					
 					fn deser_captured_var(&mut self, ser: &Vec<Vec<u8>>) {
 						let mut idx = 0;
 						#( 
-							self.#env_variables = bincode::deserialize::<#type_params>(&ser[idx]).unwrap(); 
-							idx += 1;
+							let is_serializable = self.#env_variables.deserialize(&ser[idx]);
+							if is_serializable {
+								idx += 1;
+							}
 						)*
 					}
 
